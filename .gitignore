@@ -1,0 +1,15 @@
+# Secrets
+.env
+.env.*
+!.env.example
+*.asc
+
+# Gradle
+.gradle/
+build/
+local.properties
+
+# IDE
+.idea/
+*.iml
+.kotlin/

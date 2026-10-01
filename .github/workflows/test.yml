@@ -1,0 +1,25 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Test ${{ matrix.runner }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # x64 and ARM64: the struct offsets are the same on both, and this is where it gets checked
+        runner: [windows-latest, windows-11-arm]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v6
+      - run: ./gradlew jvmTest --no-daemon --stacktrace
