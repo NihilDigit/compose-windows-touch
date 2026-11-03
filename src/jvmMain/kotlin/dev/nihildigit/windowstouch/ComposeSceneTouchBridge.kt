@@ -14,7 +14,6 @@ import androidx.compose.ui.scene.ComposeScene
 import androidx.compose.ui.scene.ComposeScenePointer
 import java.awt.Component
 import java.awt.EventQueue
-import java.awt.Point
 import java.awt.Window
 import java.lang.reflect.Field
 import java.lang.reflect.Method
@@ -120,12 +119,11 @@ internal class ComposeSceneTouchBridge private constructor(
     private fun inject(event: TouchEvent) {
         check(contentComponent.isDisplayable) { "Compose 内容已不可显示" }
 
-        val contentLocationOnScreen = contentComponent.locationOnScreen
-        val density = scene.density.density
+        // The pointer coordinates are already the target window's client px (converted via ScreenToClient in
+        // FfmPointerApi), i.e. the ComposeScene coordinate space. sceneBoundsInPx adds the scene's offset inside the
+        // host (usually zero).
         val sceneBounds = sceneBoundsMethod.invoke(mediator) as? Rect ?: Rect.Zero
-        fun toScene(screenX: Int, screenY: Int): Offset = screenToScenePosition(
-            screenX, screenY, contentLocationOnScreen, density, sceneBounds,
-        )
+        fun toScene(clientX: Int, clientY: Int): Offset = screenToScenePosition(clientX, clientY, sceneBounds)
 
         val pointers = event.pointers.map { pointer ->
             ComposeScenePointer(
@@ -225,18 +223,17 @@ internal class ComposeSceneTouchBridge private constructor(
 }
 
 /**
- * Win32 的屏幕像素坐标换成 [ComposeScene] 的局部坐标。
- * [contentLocationOnScreen] 是 AWT 宿主在屏幕上的位置，[sceneBoundsInPx] 补上 scene 在宿主里的偏移。
+ * Maps a pointer position to [ComposeScene] local coordinates. The input is already the target window's client px
+ * (converted via `ScreenToClient` in [FfmPointerApi]), which equals the scene's px space; [sceneBoundsInPx] only adds
+ * the scene's offset inside the host (usually zero). DPI- and multi-monitor-correct by construction.
  */
 internal fun screenToScenePosition(
-    screenX: Int,
-    screenY: Int,
-    contentLocationOnScreen: Point,
-    density: Float,
+    clientX: Int,
+    clientY: Int,
     sceneBoundsInPx: Rect,
 ): Offset = Offset(
-    screenX - contentLocationOnScreen.x * density - sceneBoundsInPx.left,
-    screenY - contentLocationOnScreen.y * density - sceneBoundsInPx.top,
+    clientX - sceneBoundsInPx.left,
+    clientY - sceneBoundsInPx.top,
 )
 
 /**

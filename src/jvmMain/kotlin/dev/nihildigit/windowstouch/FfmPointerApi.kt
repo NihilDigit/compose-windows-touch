@@ -7,6 +7,7 @@ import java.lang.foreign.MemorySegment
 import java.lang.foreign.SymbolLookup
 import java.lang.foreign.ValueLayout.ADDRESS
 import java.lang.foreign.ValueLayout.JAVA_INT
+import java.lang.foreign.ValueLayout.JAVA_LONG
 import java.lang.invoke.MethodHandle
 
 /**
@@ -25,6 +26,14 @@ internal class FfmPointerApi : PointerApi {
         if (!call(getPointerInfo, pointerId, pointerBuffer)) return false
         out.pointerType = pointerBuffer.get(JAVA_INT, 0)
         out.flags = pointerBuffer.get(JAVA_INT, 12)
+        // Convert ptPixelLocation (physical screen px, offset 32) to the target window's client px via Win32
+        // ScreenToClient — the ComposeScene coordinate space. This is DPI- and multi-monitor-correct, unlike deriving
+        // the scene origin from AWT's getLocationOnScreen (which mixes physical offsets with logical window insets on
+        // per-monitor-DPI displays). hwndTarget is at offset 24 (an HWND, 8 bytes).
+        val hwndTarget = pointerBuffer.get(JAVA_LONG, 24)
+        if (hwndTarget != 0L) {
+            screenToClient.invokeWithArguments(MemorySegment.ofAddress(hwndTarget), pointerBuffer.asSlice(32, 8))
+        }
         out.screenX = pointerBuffer.get(JAVA_INT, 32)
         out.screenY = pointerBuffer.get(JAVA_INT, 36)
         out.timeMillis = pointerBuffer.get(JAVA_INT, 64).toLong() and 0xFFFFFFFFL
@@ -52,5 +61,7 @@ internal class FfmPointerApi : PointerApi {
 
         val getPointerInfo: MethodHandle = linker.downcallHandle(lookup.find("GetPointerInfo").orElseThrow(), descriptor)
         val getPointerPenInfo: MethodHandle = linker.downcallHandle(lookup.find("GetPointerPenInfo").orElseThrow(), descriptor)
+        val screenToClient: MethodHandle =
+            linker.downcallHandle(lookup.find("ScreenToClient").orElseThrow(), FunctionDescriptor.of(JAVA_INT, ADDRESS, ADDRESS))
     }
 }
