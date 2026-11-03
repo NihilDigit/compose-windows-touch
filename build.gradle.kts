@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "dev.nihildigit"
-version = "0.1.0"
+version = "0.1.1-hidpi"
 
 // Compose Multiplatform release this was written and tested against. The library never pulls it in for
 // consumers: every user already has Compose Desktop, and the bridge reaches into its internals, so the
